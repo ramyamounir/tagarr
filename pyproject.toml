@@ -1,0 +1,10 @@
+[project]
+name = "aliass"
+version = "0.1.0"
+description = "Web UI for managing Sonarr scene name aliases"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "flask",
+    "gunicorn",
+]

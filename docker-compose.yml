@@ -1,0 +1,11 @@
+services:
+  aliass:
+    build: .
+    container_name: aliass
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./${SONARR_CONFIG_PATH:-.}:/data/sonarr
+    environment:
+      - SONARR_DB=/data/sonarr/sonarr.db
+    restart: unless-stopped
