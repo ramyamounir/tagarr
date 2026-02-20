@@ -4,19 +4,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Aliass is a web UI for managing manual scene name aliases in a Sonarr SQLite database. It lets users search their Sonarr series library and add/remove custom "scene mappings" (aliases) that help Sonarr match release names to the correct series. Only manually-added aliases can be deleted; auto-imported ones are read-only.
+Aliass is a web UI for managing manual scene name aliases in Sonarr and Radarr SQLite databases. It lets users search their Sonarr series library and Radarr movie library, then add/remove custom aliases that help each app match release names to the correct media. Only manually-added aliases can be deleted; auto-imported ones are read-only. The app works with either database alone or both together.
 
 ## Architecture
 
-Single-file Flask app (`app.py`) with an inline HTML/JS frontend (`templates/index.html`). No ORM — raw SQLite queries against Sonarr's database.
+Single-file Flask app (`app.py`) with an inline HTML/JS frontend (`templates/index.html`). No ORM — raw SQLite queries against Sonarr's and Radarr's databases.
 
-- **Backend**: `app.py` — Flask routes for search, add alias, remove alias. Connects to Sonarr's `sonarr.db` via `sqlite3`.
-- **Frontend**: `templates/index.html` — self-contained SPA with inline CSS/JS. Vanilla JS, no build step.
+- **Backend**: `app.py` — Flask routes for search, add alias, remove alias. Connects to Sonarr's `sonarr.db` and Radarr's `radarr.db` via `sqlite3`. Each DB is optional — the app gracefully skips unconfigured or missing databases.
+- **Frontend**: `templates/index.html` — self-contained SPA with inline CSS/JS. Vanilla JS, no build step. Cards show "TV" or "Movie" badges to distinguish media types.
 - **`main.py`**: Placeholder uv entrypoint, not used by the app.
 
-Key tables in Sonarr's DB: `Series` (series metadata), `SceneMappings` (aliases). Manual aliases are identified by `Type = "ManualMapping"` and `SceneOrigin = "manual"`.
+**Sonarr DB**: `Series` (series metadata), `SceneMappings` (aliases). Manual aliases: `Type = "ManualMapping"` and `SceneOrigin = "manual"`.
 
-`clean_series_title()` mirrors Sonarr's own title normalization (strip articles, punctuation, diacritics) to generate the `ParseTerm` field.
+**Radarr DB**: `Movies` → `MovieMetadata` (3-table join), `AlternativeTitles` (aliases). Manual aliases: `SourceType = 2`.
+
+All endpoints use a `source` field (`"sonarr"` or `"radarr"`) to route to the correct database. Search returns merged results from both.
+
+`clean_series_title()` mirrors Sonarr/Radarr's title normalization (strip articles, punctuation, diacritics) to generate `ParseTerm`/`CleanTitle` fields.
 
 ## Running
 
@@ -28,7 +32,8 @@ flask --app app run --debug          # http://localhost:5000
 docker compose up --build
 
 # Environment
-# SONARR_DB — path to sonarr.db (default: /data/sonarr.db)
+# SONARR_DB — path to sonarr.db (default: empty, skipped if not set)
+# RADARR_DB — path to radarr.db (default: empty, skipped if not set)
 ```
 
 ## Dependencies
@@ -38,6 +43,7 @@ Runtime: `flask`, `gunicorn` (see `requirements.txt`). Python 3.13+ (`.python-ve
 ## API Endpoints
 
 - `GET /` — serves the SPA
-- `GET /api/search?q=<term>` — search series by title/clean title, returns series with their aliases
-- `POST /api/alias` — add manual alias (`{tvdb_id, title, search_term?, season?}`)
-- `DELETE /api/alias/<id>` — remove a manual alias (refuses to delete auto aliases)
+- `GET /health` — per-database health status, 200 if at least one DB is healthy
+- `GET /api/search?q=<term>` — search series and movies by title, returns merged results with `source` and `media_type` fields
+- `POST /api/alias` — add manual alias (`{source, tvdb_id|metadata_id, title, ...}`)
+- `DELETE /api/alias/<id>?source=sonarr|radarr` — remove a manual alias (refuses to delete auto aliases)

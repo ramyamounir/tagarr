@@ -2,10 +2,13 @@ services:
   aliass:
     build: .
     container_name: aliass
+    user: "${PUID:-1000}:${PGID:-1000}"
     ports:
       - "5000:5000"
     volumes:
       - ./${SONARR_CONFIG_PATH:-.}:/data/sonarr
+      - ./${RADARR_CONFIG_PATH:-.}:/data/radarr
     environment:
       - SONARR_DB=/data/sonarr/sonarr.db
+      - RADARR_DB=/data/radarr/radarr.db
     restart: unless-stopped

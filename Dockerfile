@@ -1,7 +1,7 @@
 FROM python:3.12-slim
 
 LABEL org.opencontainers.image.title="aliass"
-LABEL org.opencontainers.image.description="Web UI for managing Sonarr scene name aliases"
+LABEL org.opencontainers.image.description="Web UI for managing Sonarr and Radarr scene name aliases"
 LABEL org.opencontainers.image.source="https://github.com/ramyamounir/aliass"
 
 WORKDIR /app
@@ -12,9 +12,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app.py .
 COPY templates/ templates/
 
-RUN useradd -r -s /bin/false appuser \
-    && mkdir -p /data/sonarr && chown -R appuser:appuser /data
-USER appuser
+RUN mkdir -p /data/sonarr /data/radarr
 
 EXPOSE 5000
 

@@ -10,6 +10,7 @@ build/
 dist/
 wheels/
 sonarr.db
+radarr.db
 uv.lock
 pyproject.toml
 main.py
