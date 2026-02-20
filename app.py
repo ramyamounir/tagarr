@@ -3,7 +3,7 @@ import re
 import sqlite3
 import unicodedata
 
-from flask import Flask, jsonify, request, render_template
+from flask import Flask, jsonify, request, render_template, send_file, abort
 
 app = Flask(__name__)
 
@@ -94,6 +94,25 @@ def health():
     return jsonify({"status": "ok" if any_ok else "error", "databases": status}), code
 
 
+@app.route("/media/poster/<source>/<int:db_id>")
+def poster(source, db_id):
+    if source == "sonarr":
+        base = os.path.dirname(SONARR_DB) if SONARR_DB else ""
+    elif source == "radarr":
+        base = os.path.dirname(RADARR_DB) if RADARR_DB else ""
+    else:
+        abort(404)
+
+    if not base:
+        abort(404)
+
+    path = os.path.join(base, "MediaCover", str(db_id), "poster-250.jpg")
+    if not os.path.isfile(path):
+        abort(404)
+
+    return send_file(path, mimetype="image/jpeg", max_age=86400)
+
+
 def search_sonarr(term):
     conn = get_sonarr_db(readonly=True)
     if not conn:
@@ -102,7 +121,7 @@ def search_sonarr(term):
     results = []
     try:
         series_rows = conn.execute(
-            'SELECT "TvdbId", "Title", "Year", "Status"'
+            'SELECT "Id", "TvdbId", "Title", "Year", "Status"'
             ' FROM "Series"'
             ' WHERE "Title" LIKE ? OR "CleanTitle" LIKE ?'
             ' ORDER BY "Title"',
@@ -121,6 +140,7 @@ def search_sonarr(term):
             results.append({
                 "source": "sonarr",
                 "media_type": "series",
+                "db_id": s["Id"],
                 "media_id": s["TvdbId"],
                 "title": s["Title"],
                 "year": s["Year"],
@@ -167,6 +187,7 @@ def search_radarr(term):
             results.append({
                 "source": "radarr",
                 "media_type": "movie",
+                "db_id": m["MovieId"],
                 "media_id": m["TmdbId"],
                 "metadata_id": m["MetadataId"],
                 "title": m["Title"],
@@ -350,4 +371,4 @@ def remove_alias(alias_id):
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=5757)

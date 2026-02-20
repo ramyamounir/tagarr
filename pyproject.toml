@@ -1,7 +1,7 @@
 [project]
-name = "aliass"
+name = "tagarr"
 version = "0.1.0"
-description = "Web UI for managing Sonarr scene name aliases"
+description = "Web UI for managing Sonarr and Radarr name aliases"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

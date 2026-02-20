@@ -3,133 +3,616 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Aliass</title>
+<title>Tagarr</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
 <style>
+  :root {
+    --bg-primary: #0f0f1a;
+    --bg-card: rgba(22, 27, 52, 0.7);
+    --bg-card-hover: rgba(28, 34, 62, 0.8);
+    --bg-input: rgba(15, 18, 35, 0.8);
+    --bg-alias: rgba(12, 14, 28, 0.6);
+    --border-subtle: rgba(100, 120, 200, 0.12);
+    --border-focus: rgba(100, 140, 220, 0.4);
+    --text-primary: #e2e4f0;
+    --text-secondary: #8b8fa8;
+    --text-muted: #5a5e78;
+    --accent-blue: #6c9fd4;
+    --accent-blue-glow: rgba(108, 159, 212, 0.15);
+    --accent-green: #5cb88a;
+    --accent-green-bg: rgba(92, 184, 138, 0.12);
+    --accent-red: #d46c6c;
+    --accent-red-bg: rgba(212, 108, 108, 0.12);
+    --accent-gold: #c9a83e;
+    --accent-gold-bg: rgba(201, 168, 62, 0.12);
+    --badge-tv-bg: rgba(108, 159, 212, 0.15);
+    --badge-tv-text: #6c9fd4;
+    --badge-movie-bg: rgba(201, 168, 62, 0.15);
+    --badge-movie-text: #c9a83e;
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.3), 0 1px 4px rgba(0, 0, 0, 0.2);
+    --shadow-hover: 0 8px 32px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.3);
+    --transition-fast: 150ms ease;
+    --transition-normal: 250ms ease;
+    --transition-slow: 400ms ease;
+  }
+
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #1a1a2e; color: #e0e0e0; padding: 16px; max-width: 600px; margin: 0 auto; }
-  h1 { font-size: 1.4em; margin-bottom: 16px; color: #7eb8da; }
 
-  .search-box { display: flex; gap: 8px; margin-bottom: 20px; }
-  .search-box input { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #333; background: #16213e; color: #e0e0e0; font-size: 16px; }
-  .search-box input::placeholder { color: #666; }
-  .search-box button { padding: 12px 20px; border-radius: 8px; border: none; background: #0f3460; color: #e0e0e0; font-size: 16px; cursor: pointer; }
-  .search-box button:active { background: #1a5276; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    padding: 24px 16px;
+    max-width: 680px;
+    margin: 0 auto;
+    min-height: 100vh;
+    line-height: 1.5;
+  }
 
-  .series { background: #16213e; border-radius: 10px; padding: 16px; margin-bottom: 14px; }
-  .series-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
-  .series-title { font-size: 1.1em; font-weight: 600; color: #7eb8da; }
-  .series-meta { font-size: 0.8em; color: #888; }
-  .media-id { font-size: 0.75em; color: #666; font-family: monospace; }
+  /* Header */
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .header h1 {
+    font-size: 1.6em;
+    font-weight: 700;
+    color: var(--accent-blue);
+    letter-spacing: -0.02em;
+  }
+  .header .subtitle {
+    font-size: 0.8em;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
 
-  .badge { display: inline-block; font-size: 0.65em; font-weight: 700; padding: 2px 6px; border-radius: 4px; margin-right: 6px; vertical-align: middle; text-transform: uppercase; letter-spacing: 0.5px; }
-  .badge-series { background: #1a3a5c; color: #7eb8da; }
-  .badge-movie { background: #5c4a1a; color: #dab87e; }
+  /* Search */
+  .search-wrapper {
+    position: relative;
+    margin-bottom: 24px;
+  }
+  .search-wrapper svg {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
+    transition: color var(--transition-fast);
+  }
+  .search-wrapper:focus-within svg {
+    color: var(--accent-blue);
+  }
+  .search-input {
+    width: 100%;
+    padding: 14px 44px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font-size: 16px;
+    outline: none;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+    backdrop-filter: blur(8px);
+  }
+  .search-input::placeholder { color: var(--text-muted); }
+  .search-input:focus {
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 3px var(--accent-blue-glow);
+  }
+  .search-clear {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 50%;
+    display: none;
+    transition: color var(--transition-fast), background var(--transition-fast);
+    line-height: 1;
+  }
+  .search-clear:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.08);
+  }
+  .search-clear.visible { display: block; }
 
-  .alias { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; margin-bottom: 4px; background: #1a1a2e; border-radius: 6px; }
+  /* Loading spinner */
+  .spinner {
+    display: flex;
+    justify-content: center;
+    padding: 48px 0;
+  }
+  .spinner::after {
+    content: "";
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--border-subtle);
+    border-top-color: var(--accent-blue);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Cards */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow-card);
+    backdrop-filter: blur(12px);
+    transition: transform var(--transition-normal), box-shadow var(--transition-normal), background var(--transition-normal);
+    animation: cardIn var(--transition-slow) ease both;
+  }
+  .card:hover {
+    background: var(--bg-card-hover);
+    box-shadow: var(--shadow-hover);
+    transform: translateY(-1px);
+  }
+  @keyframes cardIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .card-top {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 14px;
+  }
+  .card-poster {
+    width: 64px;
+    height: 96px;
+    border-radius: var(--radius-sm);
+    object-fit: cover;
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-subtle);
+  }
+  .card-poster-placeholder {
+    width: 64px;
+    height: 96px;
+    border-radius: var(--radius-sm);
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-subtle);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 1.6em;
+    opacity: 0.4;
+  }
+  .card-info { flex: 1; min-width: 0; }
+
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .card-title {
+    font-size: 1.1em;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.4;
+  }
+  .card-meta {
+    font-size: 0.78em;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    margin-top: 3px;
+  }
+  .media-id {
+    font-size: 0.72em;
+    color: var(--text-muted);
+    font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+  }
+
+  /* Badges */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.65em;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 6px;
+    margin-right: 8px;
+    vertical-align: middle;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+  }
+  .badge-tv {
+    background: var(--badge-tv-bg);
+    color: var(--badge-tv-text);
+  }
+  .badge-movie {
+    background: var(--badge-movie-bg);
+    color: var(--badge-movie-text);
+  }
+
+  /* Aliases */
+  .aliases-section { margin-bottom: 12px; }
+  .aliases-label {
+    font-size: 0.72em;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+
+  .alias {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    margin-bottom: 6px;
+    background: var(--bg-alias);
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    transition: border-color var(--transition-fast), background var(--transition-fast);
+  }
+  .alias:hover {
+    border-color: var(--border-subtle);
+    background: rgba(15, 18, 35, 0.8);
+  }
   .alias-info { flex: 1; min-width: 0; }
-  .alias-title { word-break: break-word; }
-  .alias-search { font-size: 0.8em; color: #888; }
-  .alias-season { font-size: 0.75em; color: #c9a227; margin-left: 6px; }
-  .alias-auto { font-size: 0.7em; color: #555; font-style: italic; }
-  .alias .remove-btn { background: #5c1a1a; color: #e07070; border: none; border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 14px; margin-left: 8px; flex-shrink: 0; }
-  .alias .remove-btn:active { background: #7a2020; }
+  .alias-title { word-break: break-word; font-size: 0.92em; }
+  .alias-search { font-size: 0.78em; color: var(--text-secondary); margin-top: 2px; }
+  .alias-season {
+    font-size: 0.72em;
+    color: var(--accent-gold);
+    background: var(--accent-gold-bg);
+    padding: 1px 6px;
+    border-radius: 4px;
+    margin-left: 8px;
+    font-weight: 600;
+  }
+  .alias-auto {
+    font-size: 0.7em;
+    color: var(--text-muted);
+    font-style: italic;
+  }
 
-  .no-aliases { color: #555; font-style: italic; font-size: 0.9em; padding: 4px 0; }
+  .no-aliases {
+    color: var(--text-muted);
+    font-style: italic;
+    font-size: 0.85em;
+    padding: 8px 0;
+  }
 
-  .add-form { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
-  .add-form input { flex: 1; min-width: 120px; padding: 10px; border-radius: 6px; border: 1px solid #333; background: #1a1a2e; color: #e0e0e0; font-size: 15px; }
-  .add-form button { padding: 10px 16px; border-radius: 6px; border: none; background: #1a5c3a; color: #e0e0e0; font-size: 15px; cursor: pointer; flex-shrink: 0; }
-  .add-form button:active { background: #237a4c; }
+  /* Buttons */
+  .btn {
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+    outline: none;
+  }
+  .btn:focus-visible {
+    box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent-blue);
+  }
+  .btn:active { transform: scale(0.97); }
 
-  .msg { padding: 8px 12px; border-radius: 6px; margin-top: 8px; font-size: 0.85em; }
-  .msg-ok { background: #1a3a2a; color: #70e090; }
-  .msg-err { background: #3a1a1a; color: #e07070; }
+  .btn-remove {
+    background: var(--accent-red-bg);
+    color: var(--accent-red);
+    padding: 6px 14px;
+    margin-left: 10px;
+    flex-shrink: 0;
+  }
+  .btn-remove:hover { background: rgba(212, 108, 108, 0.22); }
 
-  .empty { text-align: center; color: #555; margin-top: 40px; }
+  .btn-add {
+    background: var(--accent-green-bg);
+    color: var(--accent-green);
+    padding: 10px 18px;
+    flex-shrink: 0;
+    border: 1px solid rgba(92, 184, 138, 0.2);
+  }
+  .btn-add:hover {
+    background: rgba(92, 184, 138, 0.2);
+    border-color: rgba(92, 184, 138, 0.3);
+  }
+
+  .btn-confirm {
+    background: var(--accent-red-bg);
+    color: var(--accent-red);
+    padding: 4px 10px;
+    font-size: 12px;
+    border: 1px solid rgba(212, 108, 108, 0.2);
+  }
+  .btn-confirm:hover { background: rgba(212, 108, 108, 0.25); }
+
+  .btn-cancel {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-secondary);
+    padding: 4px 10px;
+    font-size: 12px;
+  }
+  .btn-cancel:hover { background: rgba(255, 255, 255, 0.1); }
+
+  /* Add form */
+  .add-form {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+    flex-wrap: wrap;
+  }
+  .add-form input {
+    flex: 1;
+    min-width: 140px;
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font-size: 14px;
+    outline: none;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  }
+  .add-form input::placeholder { color: var(--text-muted); }
+  .add-form input:focus {
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 3px var(--accent-blue-glow);
+  }
+
+  /* Confirm bar (inline delete confirmation) */
+  .confirm-bar {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 10px;
+    animation: fadeIn 150ms ease;
+  }
+  .confirm-bar span {
+    font-size: 0.75em;
+    color: var(--text-secondary);
+  }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  /* Toast notifications */
+  .toast-container {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 8px;
+    pointer-events: none;
+    max-width: 420px;
+    width: calc(100% - 32px);
+  }
+  .toast {
+    padding: 12px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 0.85em;
+    font-weight: 500;
+    pointer-events: auto;
+    backdrop-filter: blur(12px);
+    border: 1px solid transparent;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    animation: toastIn var(--transition-normal) ease;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .toast.leaving {
+    animation: toastOut var(--transition-fast) ease forwards;
+  }
+  .toast-ok {
+    background: rgba(16, 42, 30, 0.92);
+    color: var(--accent-green);
+    border-color: rgba(92, 184, 138, 0.2);
+  }
+  .toast-err {
+    background: rgba(50, 18, 18, 0.92);
+    color: var(--accent-red);
+    border-color: rgba(212, 108, 108, 0.2);
+  }
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes toastOut {
+    from { opacity: 1; transform: translateY(0); }
+    to { opacity: 0; transform: translateY(8px); }
+  }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 64px 16px;
+    color: var(--text-muted);
+  }
+  .empty-state .icon {
+    font-size: 2.4em;
+    margin-bottom: 12px;
+    opacity: 0.5;
+  }
+  .empty-state p {
+    font-size: 0.9em;
+    line-height: 1.6;
+  }
+
+  /* Responsive */
+  @media (max-width: 480px) {
+    body { padding: 16px 12px; }
+    .card { padding: 16px; }
+    .add-form { gap: 6px; }
+    .add-form input { min-width: 100px; }
+  }
 </style>
 </head>
 <body>
 
-<h1>Aliass</h1>
+<div class="header">
+  <div>
+    <h1>Tagarr</h1>
+    <div class="subtitle">Teach your *arrs new names</div>
+  </div>
+</div>
 
-<div class="search-box">
-  <input type="text" id="search" placeholder="Search series and movies..." autofocus>
-  <button onclick="doSearch()">Search</button>
+<div class="search-wrapper">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+  <input type="text" class="search-input" id="search" placeholder="Search series and movies..." autofocus>
+  <button class="search-clear" id="searchClear" aria-label="Clear search">&times;</button>
 </div>
 
 <div id="results"></div>
 
+<div class="toast-container" id="toasts"></div>
+
 <script>
 const $ = (s) => document.querySelector(s);
 const searchInput = $("#search");
+const clearBtn = $("#searchClear");
 const resultsDiv = $("#results");
+const toastsDiv = $("#toasts");
+
+let debounceTimer = null;
+let lastQuery = "";
+
+/* ---- Search ---- */
+searchInput.addEventListener("input", () => {
+  clearBtn.classList.toggle("visible", searchInput.value.length > 0);
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => doSearch(), 300);
+});
 
 searchInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") doSearch();
+  if (e.key === "Escape") { searchInput.value = ""; clearBtn.classList.remove("visible"); resultsDiv.innerHTML = ""; lastQuery = ""; }
+});
+
+clearBtn.addEventListener("click", () => {
+  searchInput.value = "";
+  clearBtn.classList.remove("visible");
+  searchInput.focus();
+  resultsDiv.innerHTML = "";
+  lastQuery = "";
 });
 
 function cardKey(item) {
   return `${item.source}-${item.media_id}`;
 }
 
-async function doSearch() {
+async function doSearch(opts = {}) {
   const q = searchInput.value.trim();
-  if (!q) return;
-  resultsDiv.innerHTML = '<div class="empty">Searching...</div>';
+  if (!q) { resultsDiv.innerHTML = ""; lastQuery = ""; return; }
+  if (q === lastQuery) return;
+  lastQuery = q;
 
-  const res = await fetch("/api/search?q=" + encodeURIComponent(q));
-  const data = await res.json();
+  const scrollY = opts.preserveScroll ? window.scrollY : null;
 
-  if (data.length === 0) {
-    resultsDiv.innerHTML = '<div class="empty">No results found</div>';
-    return;
+  if (!opts.preserveScroll) {
+    resultsDiv.innerHTML = '<div class="spinner"></div>';
   }
 
-  resultsDiv.innerHTML = data.map(renderCard).join("");
+  try {
+    const res = await fetch("/api/search?q=" + encodeURIComponent(q));
+    const data = await res.json();
+
+    if (searchInput.value.trim() !== q) return;
+
+    if (data.length === 0) {
+      resultsDiv.innerHTML = `
+        <div class="empty-state">
+          <div class="icon">&#128269;</div>
+          <p>No results found for &ldquo;${esc(q)}&rdquo;</p>
+        </div>`;
+      return;
+    }
+
+    resultsDiv.innerHTML = data.map((item, i) =>
+      renderCard(item, i)
+    ).join("");
+
+    if (scrollY !== null) {
+      window.scrollTo(0, scrollY);
+    }
+  } catch (err) {
+    resultsDiv.innerHTML = `
+      <div class="empty-state">
+        <div class="icon">&#9888;</div>
+        <p>Something went wrong. Please try again.</p>
+      </div>`;
+  }
 }
 
-function renderCard(item) {
+function renderCard(item, index) {
   const key = cardKey(item);
   const year = item.year ? ` (${item.year})` : "";
-  const status = item.status ? ` &middot; ${item.status}` : "";
-  const badgeClass = item.media_type === "movie" ? "badge-movie" : "badge-series";
+  const status = item.status ? item.status : "";
+  const badgeClass = item.media_type === "movie" ? "badge-movie" : "badge-tv";
   const badgeLabel = item.media_type === "movie" ? "Movie" : "TV";
   const idLabel = item.source === "radarr" ? "TMDB" : "TVDB";
 
   const aliasesHtml = item.aliases.length === 0
-    ? '<div class="no-aliases">No aliases</div>'
+    ? '<div class="no-aliases">No aliases yet</div>'
     : item.aliases.map(a => renderAlias(a, item.source, key)).join("");
 
   const seasonInput = item.media_type === "series"
-    ? `<input type="text" id="new-season-${key}" placeholder="Season (opt)" style="max-width:90px;flex:0 0 90px;">`
+    ? `<input type="text" id="new-season-${key}" placeholder="Season" style="max-width:80px;flex:0 0 80px;">`
     : "";
 
+  const delay = Math.min(index * 60, 300);
+  const posterUrl = `/media/poster/${item.source}/${item.db_id}`;
+  const placeholderIcon = item.media_type === "movie" ? "&#127916;" : "&#128250;";
+
   return `
-    <div class="series" id="card-${key}">
-      <div class="series-header">
-        <span class="series-title"><span class="badge ${badgeClass}">${badgeLabel}</span>${esc(item.title)}${year}</span>
-        <span class="series-meta">${status}</span>
+    <div class="card" id="card-${key}" style="animation-delay:${delay}ms">
+      <div class="card-top">
+        <img class="card-poster" src="${posterUrl}" alt=""
+             onerror="this.outerHTML='<div class=\\'card-poster-placeholder\\'>${placeholderIcon}</div>'">
+        <div class="card-info">
+          <div class="card-header">
+            <span class="card-title"><span class="badge ${badgeClass}">${badgeLabel}</span>${esc(item.title)}${year}</span>
+            <span class="card-meta">${status}</span>
+          </div>
+          <div class="media-id">${idLabel} ${item.media_id}</div>
+        </div>
       </div>
-      <div class="media-id">${idLabel}: ${item.media_id}</div>
-      <div class="aliases" id="aliases-${key}">
-        ${aliasesHtml}
+      <div class="aliases-section">
+        <div class="aliases-label">Aliases</div>
+        <div id="aliases-${key}">
+          ${aliasesHtml}
+        </div>
       </div>
       <div class="add-form">
-        <input type="text" id="new-alias-${key}" placeholder="New alias...">
+        <input type="text" id="new-alias-${key}" placeholder="Add new alias..."
+               onkeydown="if(event.key==='Enter')addAlias('${key}','${item.source}',${item.media_id},${item.metadata_id||'null'})">
         ${seasonInput}
-        <button onclick="addAlias('${key}', '${item.source}', ${item.media_id}, ${item.metadata_id || 'null'})">Add</button>
+        <button class="btn btn-add" onclick="addAlias('${key}','${item.source}',${item.media_id},${item.metadata_id||'null'})">Add</button>
       </div>
-      <div id="msg-${key}"></div>
     </div>`;
 }
 
 function renderAlias(a, source, key) {
   const searchInfo = a.search_term && a.search_term !== a.title
-    ? `<div class="alias-search">searches: ${esc(a.search_term)}</div>` : "";
-  const season = a.season !== null && a.season !== undefined ? `<span class="alias-season">S${a.season}</span>` : "";
+    ? `<div class="alias-search">search: ${esc(a.search_term)}</div>` : "";
+  const season = a.season !== null && a.season !== undefined
+    ? `<span class="alias-season">S${String(a.season).padStart(2, "0")}</span>` : "";
   const removeBtn = a.manual
-    ? `<button class="remove-btn" onclick="removeAlias(${a.id}, '${source}', '${key}')">Remove</button>` : "";
-  const autoTag = !a.manual ? '<span class="alias-auto"> (auto)</span>' : "";
+    ? `<button class="btn btn-remove" onclick="confirmRemove(this,${a.id},'${source}','${key}')">Remove</button>` : "";
+  const autoTag = !a.manual ? ' <span class="alias-auto">(auto)</span>' : "";
 
   return `
     <div class="alias" id="alias-${source}-${a.id}">
@@ -141,6 +624,29 @@ function renderAlias(a, source, key) {
     </div>`;
 }
 
+/* ---- Delete confirmation ---- */
+function confirmRemove(btn, aliasId, source, key) {
+  const parent = btn.parentElement;
+  btn.style.display = "none";
+
+  const bar = document.createElement("span");
+  bar.className = "confirm-bar";
+  bar.innerHTML = `
+    <span>Delete?</span>
+    <button class="btn btn-confirm" onclick="removeAlias(${aliasId},'${source}','${key}',this)">Yes</button>
+    <button class="btn btn-cancel" onclick="cancelRemove(this)">No</button>`;
+  parent.appendChild(bar);
+}
+
+function cancelRemove(noBtn) {
+  const bar = noBtn.closest(".confirm-bar");
+  const alias = bar.closest(".alias");
+  bar.remove();
+  const removeBtn = alias.querySelector(".btn-remove");
+  if (removeBtn) removeBtn.style.display = "";
+}
+
+/* ---- API actions ---- */
 async function addAlias(key, source, mediaId, metadataId) {
   const input = $(`#new-alias-${key}`);
   const title = input.value.trim();
@@ -164,34 +670,49 @@ async function addAlias(key, source, mediaId, metadataId) {
   const data = await res.json();
 
   if (data.error) {
-    showMsg(key, data.error, true);
+    toast(data.error, true);
     return;
   }
 
   input.value = "";
-  showMsg(key, `Added "${title}"`, false);
-  doSearch();
+  toast(`Added "${title}"`);
+  lastQuery = "";
+  doSearch({ preserveScroll: true });
 }
 
-async function removeAlias(aliasId, source, key) {
+async function removeAlias(aliasId, source, key, confirmBtn) {
   const res = await fetch(`/api/alias/${aliasId}?source=${source}`, { method: "DELETE" });
   const data = await res.json();
 
   if (data.error) {
-    showMsg(key, data.error, true);
+    toast(data.error, true);
+    if (confirmBtn) cancelRemove(confirmBtn);
     return;
   }
 
-  showMsg(key, "Removed", false);
-  doSearch();
+  toast("Alias removed");
+  lastQuery = "";
+  doSearch({ preserveScroll: true });
 }
 
-function showMsg(key, text, isError) {
-  const el = $(`#msg-${key}`);
-  el.innerHTML = `<div class="msg ${isError ? "msg-err" : "msg-ok"}">${esc(text)}</div>`;
-  setTimeout(() => { el.innerHTML = ""; }, 3000);
+/* ---- Toast notifications ---- */
+function toast(text, isError) {
+  const el = document.createElement("div");
+  el.className = `toast ${isError ? "toast-err" : "toast-ok"}`;
+  el.textContent = text;
+  el.addEventListener("click", () => dismissToast(el));
+  toastsDiv.appendChild(el);
+
+  setTimeout(() => dismissToast(el), 3500);
 }
 
+function dismissToast(el) {
+  if (el.classList.contains("leaving")) return;
+  el.classList.add("leaving");
+  el.addEventListener("animationend", () => el.remove());
+}
+
+/* ---- Helpers ---- */
 function esc(s) {
   const d = document.createElement("div");
   d.textContent = s;

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Aliass is a web UI for managing manual scene name aliases in Sonarr and Radarr SQLite databases. It lets users search their Sonarr series library and Radarr movie library, then add/remove custom aliases that help each app match release names to the correct media. Only manually-added aliases can be deleted; auto-imported ones are read-only. The app works with either database alone or both together.
+Tagarr is a web UI for managing manual scene name aliases in Sonarr and Radarr SQLite databases. It lets users search their Sonarr series library and Radarr movie library, then add/remove custom aliases that help each app match release names to the correct media. Only manually-added aliases can be deleted; auto-imported ones are read-only. The app works with either database alone or both together.
 
 ## Architecture
 
@@ -12,7 +12,6 @@ Single-file Flask app (`app.py`) with an inline HTML/JS frontend (`templates/ind
 
 - **Backend**: `app.py` — Flask routes for search, add alias, remove alias. Connects to Sonarr's `sonarr.db` and Radarr's `radarr.db` via `sqlite3`. Each DB is optional — the app gracefully skips unconfigured or missing databases.
 - **Frontend**: `templates/index.html` — self-contained SPA with inline CSS/JS. Vanilla JS, no build step. Cards show "TV" or "Movie" badges to distinguish media types.
-- **`main.py`**: Placeholder uv entrypoint, not used by the app.
 
 **Sonarr DB**: `Series` (series metadata), `SceneMappings` (aliases). Manual aliases: `Type = "ManualMapping"` and `SceneOrigin = "manual"`.
 
