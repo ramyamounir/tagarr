@@ -26,7 +26,7 @@ Tagarr runs as a Docker container alongside your existing Sonarr/Radarr setup. I
 ```yaml
 services:
   tagarr:
-    image: ghcr.io/ramyamounir/tagarr:latest
+    image: ramymounir/tagarr:latest
     container_name: tagarr
     ports:
       - "5757:5757"
