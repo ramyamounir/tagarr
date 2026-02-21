@@ -272,7 +272,7 @@
   .alias-info { flex: 1; min-width: 0; }
   .alias-title { word-break: break-word; font-size: 0.92em; }
   .alias-search { font-size: 0.78em; color: var(--text-secondary); margin-top: 2px; }
-  .alias-season {
+  .alias-network {
     font-size: 0.72em;
     color: var(--accent-gold);
     background: var(--accent-gold-bg);
@@ -569,8 +569,9 @@ function renderCard(item, index) {
     ? '<div class="no-aliases">No aliases yet</div>'
     : item.aliases.map(a => renderAlias(a, item.source, key)).join("");
 
-  const seasonInput = item.media_type === "series"
-    ? `<input type="text" id="new-season-${key}" placeholder="Season" style="max-width:80px;flex:0 0 80px;">`
+  const networkInput = item.media_type === "series"
+    ? `<input type="text" id="new-network-${key}" placeholder="Network (optional)" style="max-width:160px;flex:0 0 160px;"
+             onkeydown="if(event.key==='Enter')addAlias('${key}','${item.source}',${item.media_id},${item.metadata_id||'null'})">`
     : "";
 
   const delay = Math.min(index * 60, 300);
@@ -599,7 +600,7 @@ function renderCard(item, index) {
       <div class="add-form">
         <input type="text" id="new-alias-${key}" placeholder="Add new alias..."
                onkeydown="if(event.key==='Enter')addAlias('${key}','${item.source}',${item.media_id},${item.metadata_id||'null'})">
-        ${seasonInput}
+        ${networkInput}
         <button class="btn btn-add" onclick="addAlias('${key}','${item.source}',${item.media_id},${item.metadata_id||'null'})">Add</button>
       </div>
     </div>`;
@@ -608,8 +609,8 @@ function renderCard(item, index) {
 function renderAlias(a, source, key) {
   const searchInfo = a.search_term && a.search_term !== a.title
     ? `<div class="alias-search">search: ${esc(a.search_term)}</div>` : "";
-  const season = a.season !== null && a.season !== undefined
-    ? `<span class="alias-season">S${String(a.season).padStart(2, "0")}</span>` : "";
+  const networkBadge = a.network
+    ? `<span class="alias-network">${esc(a.network)}</span>` : "";
   const removeBtn = a.manual
     ? `<button class="btn btn-remove" onclick="confirmRemove(this,${a.id},'${source}','${key}')">Remove</button>` : "";
   const autoTag = !a.manual ? ' <span class="alias-auto">(auto)</span>' : "";
@@ -617,7 +618,7 @@ function renderAlias(a, source, key) {
   return `
     <div class="alias" id="alias-${source}-${a.id}">
       <div class="alias-info">
-        <span class="alias-title">${esc(a.title)}${season}${autoTag}</span>
+        <span class="alias-title">${esc(a.title)}${networkBadge}${autoTag}</span>
         ${searchInfo}
       </div>
       ${removeBtn}
@@ -656,10 +657,10 @@ async function addAlias(key, source, mediaId, metadataId) {
   if (source === "radarr") {
     body = { source: "radarr", metadata_id: metadataId, title };
   } else {
-    const seasonInput = $(`#new-season-${key}`);
-    const season = seasonInput ? seasonInput.value.trim() : "";
+    const networkInput = $(`#new-network-${key}`);
+    const network = networkInput ? networkInput.value.trim() : "";
     body = { source: "sonarr", tvdb_id: mediaId, title };
-    if (season !== "") body.season = parseInt(season, 10);
+    if (network !== "") body.network = network;
   }
 
   const res = await fetch("/api/alias", {
@@ -675,6 +676,8 @@ async function addAlias(key, source, mediaId, metadataId) {
   }
 
   input.value = "";
+  const netInput = $(`#new-network-${key}`);
+  if (netInput) netInput.value = "";
   toast(`Added "${title}"`);
   lastQuery = "";
   doSearch({ preserveScroll: true });

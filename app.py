@@ -198,12 +198,43 @@ def search_sonarr(term):
 
         for s in series_rows:
             aliases = conn.execute(
-                'SELECT "Id", "Title", "SearchTerm", "SeasonNumber", "Type"'
+                'SELECT "Id", "Title", "SearchTerm", "SeasonNumber", "Type", "Comment"'
                 ' FROM "SceneMappings"'
                 ' WHERE "TvdbId" = ?'
                 ' ORDER BY "Type", "Id"',
                 (s["TvdbId"],),
             ).fetchall()
+
+            alias_list = []
+            seen_comments = set()
+            for a in aliases:
+                comment = a["Comment"] or ""
+                is_manual = a["Type"] == SONARR_MANUAL_TYPE
+                if is_manual and comment.startswith("network:"):
+                    if comment in seen_comments:
+                        continue
+                    seen_comments.add(comment)
+                    # Extract network name: "network:NET|parseterm"
+                    payload = comment[len("network:"):]
+                    network = payload.split("|", 1)[0]
+                    # Find the base title (shorter one in the pair)
+                    pair = [r for r in aliases if (r["Comment"] or "") == comment]
+                    base = min(pair, key=lambda r: len(r["Title"]))
+                    alias_list.append({
+                        "id": base["Id"],
+                        "title": base["Title"],
+                        "search_term": base["SearchTerm"],
+                        "network": network,
+                        "manual": True,
+                    })
+                else:
+                    alias_list.append({
+                        "id": a["Id"],
+                        "title": a["Title"],
+                        "search_term": a["SearchTerm"],
+                        "network": None,
+                        "manual": is_manual,
+                    })
 
             results.append({
                 "source": "sonarr",
@@ -213,13 +244,7 @@ def search_sonarr(term):
                 "title": s["Title"],
                 "year": s["Year"],
                 "status": SONARR_STATUS.get(s["Status"], str(s["Status"])),
-                "aliases": [{
-                    "id": a["Id"],
-                    "title": a["Title"],
-                    "search_term": a["SearchTerm"],
-                    "season": a["SeasonNumber"] if a["SeasonNumber"] is not None and a["SeasonNumber"] >= 0 else None,
-                    "manual": a["Type"] == SONARR_MANUAL_TYPE,
-                } for a in aliases],
+                "aliases": alias_list,
             })
     finally:
         conn.close()
@@ -267,7 +292,7 @@ def search_radarr(term):
                     "id": a["Id"],
                     "title": a["Title"],
                     "search_term": None,
-                    "season": None,
+                    "network": None,
                     "manual": a["SourceType"] == RADARR_MANUAL_SOURCE_TYPE,
                 } for a in aliases],
             })
@@ -291,7 +316,7 @@ def _add_sonarr_alias(data):
     tvdb_id = data.get("tvdb_id")
     title = data.get("title", "").strip()
     search_term = data.get("search_term", "").strip() or title
-    season = data.get("season")
+    network = (data.get("network") or "").strip()
 
     if not tvdb_id or not title:
         return jsonify({"error": "tvdb_id and title are required"}), 400
@@ -313,24 +338,52 @@ def _add_sonarr_alias(data):
         if existing:
             return jsonify({"error": "This alias already exists for this series"}), 409
 
-        conn.execute(
-            'INSERT INTO "SceneMappings"'
-            ' ("Title", "ParseTerm", "SearchTerm", "TvdbId", "SeasonNumber",'
-            '  "SceneSeasonNumber", "SceneOrigin", "SearchMode", "Comment",'
-            '  "FilterRegex", "Type")'
-            ' VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, NULL, ?)',
-            (
-                title,
-                parse_term,
-                search_term,
-                tvdb_id,
-                season if season is not None else -1,
-                SONARR_MANUAL_ORIGIN,
-                SONARR_SEARCH_MODE_BOTH,
-                "Manual alias",
-                SONARR_MANUAL_TYPE,
-            ),
-        )
+        if network:
+            net_title = f"{title} {network}"
+            net_parse_term = clean_series_title(net_title)
+            net_search_term = net_title
+
+            existing_net = conn.execute(
+                'SELECT "Id" FROM "SceneMappings" WHERE "ParseTerm" = ? AND "TvdbId" = ? AND "Type" = ?',
+                (net_parse_term, tvdb_id, SONARR_MANUAL_TYPE),
+            ).fetchone()
+
+            if existing_net:
+                return jsonify({"error": "This alias already exists for this series"}), 409
+
+            comment = f"network:{network}|{parse_term}"
+
+            # Base title entry
+            conn.execute(
+                'INSERT INTO "SceneMappings"'
+                ' ("Title", "ParseTerm", "SearchTerm", "TvdbId", "SeasonNumber",'
+                '  "SceneSeasonNumber", "SceneOrigin", "SearchMode", "Comment",'
+                '  "FilterRegex", "Type")'
+                ' VALUES (?, ?, ?, ?, -1, NULL, ?, ?, ?, NULL, ?)',
+                (title, parse_term, search_term, tvdb_id,
+                 SONARR_MANUAL_ORIGIN, SONARR_SEARCH_MODE_BOTH, comment, SONARR_MANUAL_TYPE),
+            )
+            # Network title entry
+            conn.execute(
+                'INSERT INTO "SceneMappings"'
+                ' ("Title", "ParseTerm", "SearchTerm", "TvdbId", "SeasonNumber",'
+                '  "SceneSeasonNumber", "SceneOrigin", "SearchMode", "Comment",'
+                '  "FilterRegex", "Type")'
+                ' VALUES (?, ?, ?, ?, -1, NULL, ?, ?, ?, NULL, ?)',
+                (net_title, net_parse_term, net_search_term, tvdb_id,
+                 SONARR_MANUAL_ORIGIN, SONARR_SEARCH_MODE_BOTH, comment, SONARR_MANUAL_TYPE),
+            )
+        else:
+            conn.execute(
+                'INSERT INTO "SceneMappings"'
+                ' ("Title", "ParseTerm", "SearchTerm", "TvdbId", "SeasonNumber",'
+                '  "SceneSeasonNumber", "SceneOrigin", "SearchMode", "Comment",'
+                '  "FilterRegex", "Type")'
+                ' VALUES (?, ?, ?, ?, -1, NULL, ?, ?, ?, NULL, ?)',
+                (title, parse_term, search_term, tvdb_id,
+                 SONARR_MANUAL_ORIGIN, SONARR_SEARCH_MODE_BOTH, "Manual alias", SONARR_MANUAL_TYPE),
+            )
+
         conn.commit()
         conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
 
@@ -400,7 +453,7 @@ def _remove_sonarr_alias(alias_id):
 
     with conn:
         row = conn.execute(
-            'SELECT "Title", "Type" FROM "SceneMappings" WHERE "Id" = ?',
+            'SELECT "Title", "Type", "Comment", "TvdbId" FROM "SceneMappings" WHERE "Id" = ?',
             (alias_id,),
         ).fetchone()
 
@@ -410,7 +463,15 @@ def _remove_sonarr_alias(alias_id):
         if row["Type"] != SONARR_MANUAL_TYPE:
             return jsonify({"error": "Only manual aliases can be removed"}), 403
 
-        conn.execute('DELETE FROM "SceneMappings" WHERE "Id" = ?', (alias_id,))
+        comment = row["Comment"] or ""
+        if comment.startswith("network:"):
+            conn.execute(
+                'DELETE FROM "SceneMappings" WHERE "TvdbId" = ? AND "Type" = ? AND "Comment" = ?',
+                (row["TvdbId"], SONARR_MANUAL_TYPE, comment),
+            )
+        else:
+            conn.execute('DELETE FROM "SceneMappings" WHERE "Id" = ?', (alias_id,))
+
         conn.commit()
         conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
 
