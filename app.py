@@ -12,6 +12,7 @@ RADARR_DB = os.environ.get("RADARR_DB", "")
 
 SONARR_MANUAL_TYPE = "ManualMapping"
 SONARR_MANUAL_ORIGIN = "manual"
+SONARR_SEARCH_MODE_BOTH = 3  # SearchID(1) | SearchTitle(2) — search by both ID and title simultaneously
 RADARR_MANUAL_SOURCE_TYPE = 2
 
 SONARR_STATUS = {0: "Continuing", 1: "Ended"}
@@ -22,7 +23,7 @@ def _get_db(path, readonly=False):
     if not path or not os.path.isfile(path):
         return None
     if readonly:
-        conn = sqlite3.connect(f"file:{path}?mode=ro&immutable=1", uri=True)
+        conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
     else:
         conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
@@ -52,6 +53,73 @@ def clean_series_title(title):
     normalized = unicodedata.normalize("NFD", title)
     title = "".join(c for c in normalized if unicodedata.category(c) != "Mn")
     return title
+
+
+def clean_movie_title(title):
+    if not title or not title.strip():
+        return title
+    if title.isdigit():
+        return title
+    title = title.replace("%", "percent")
+    # German umlaut expansion (Radarr's CleanMovieTitle does this before stripping diacritics)
+    for src, repl in (("ä", "ae"), ("ö", "oe"), ("ü", "ue"), ("ß", "ss"),
+                      ("Ä", "Ae"), ("Ö", "Oe"), ("Ü", "Ue")):
+        title = title.replace(src, repl)
+    title = re.sub(
+        r"(?:(?<=\b)|(?<=_))(?<!^)(?:a(?!$)|à(?!$)|an|the|and|or|of)(?!$)(?=\b|_)",
+        "", title, flags=re.IGNORECASE | re.UNICODE,
+    )
+    title = re.sub(r"[\W_]+", "", title, flags=re.UNICODE)
+    title = title.lower()
+    normalized = unicodedata.normalize("NFD", title)
+    title = "".join(c for c in normalized if unicodedata.category(c) != "Mn")
+    return title
+
+
+def _ensure_tagarr_table(conn):
+    conn.execute(
+        'CREATE TABLE IF NOT EXISTS "TagarrAliases" ('
+        ' "Id" INTEGER PRIMARY KEY AUTOINCREMENT,'
+        ' "Title" TEXT NOT NULL,'
+        ' "CleanTitle" TEXT NOT NULL,'
+        ' "MovieMetadataId" INTEGER NOT NULL,'
+        ' UNIQUE ("MovieMetadataId", "CleanTitle"))'
+    )
+    # Backfill any existing manual aliases we don't yet track
+    conn.execute(
+        'INSERT OR IGNORE INTO "TagarrAliases" ("Title", "CleanTitle", "MovieMetadataId")'
+        ' SELECT "Title", "CleanTitle", "MovieMetadataId"'
+        ' FROM "AlternativeTitles"'
+        ' WHERE "SourceType" = ?',
+        (RADARR_MANUAL_SOURCE_TYPE,),
+    )
+    conn.commit()
+
+
+def _sync_radarr_aliases(conn):
+    _ensure_tagarr_table(conn)
+
+    missing = conn.execute(
+        'SELECT t."Title", t."CleanTitle", t."MovieMetadataId"'
+        ' FROM "TagarrAliases" t'
+        ' LEFT JOIN "AlternativeTitles" a'
+        '   ON a."MovieMetadataId" = t."MovieMetadataId"'
+        '   AND a."CleanTitle" = t."CleanTitle"'
+        ' WHERE a."Id" IS NULL'
+    ).fetchall()
+
+    if not missing:
+        return
+
+    for row in missing:
+        conn.execute(
+            'INSERT INTO "AlternativeTitles"'
+            ' ("Title", "CleanTitle", "SourceType", "MovieMetadataId")'
+            ' VALUES (?, ?, ?, ?)',
+            (row["Title"], row["CleanTitle"], RADARR_MANUAL_SOURCE_TYPE, row["MovieMetadataId"]),
+        )
+    conn.commit()
+    conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
 
 
 @app.route("/")
@@ -159,12 +227,14 @@ def search_sonarr(term):
 
 
 def search_radarr(term):
-    conn = get_radarr_db(readonly=True)
+    conn = get_radarr_db()
     if not conn:
         return []
 
     results = []
     try:
+        _sync_radarr_aliases(conn)
+
         movie_rows = conn.execute(
             'SELECT m."Id" AS "MovieId", mm."Id" AS "MetadataId",'
             ' mm."Title", mm."Year", mm."Status", mm."TmdbId"'
@@ -248,7 +318,7 @@ def _add_sonarr_alias(data):
             ' ("Title", "ParseTerm", "SearchTerm", "TvdbId", "SeasonNumber",'
             '  "SceneSeasonNumber", "SceneOrigin", "SearchMode", "Comment",'
             '  "FilterRegex", "Type")'
-            ' VALUES (?, ?, ?, ?, ?, NULL, ?, 0, ?, NULL, ?)',
+            ' VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, NULL, ?)',
             (
                 title,
                 parse_term,
@@ -256,6 +326,7 @@ def _add_sonarr_alias(data):
                 tvdb_id,
                 season if season is not None else -1,
                 SONARR_MANUAL_ORIGIN,
+                SONARR_SEARCH_MODE_BOTH,
                 "Manual alias",
                 SONARR_MANUAL_TYPE,
             ),
@@ -273,7 +344,7 @@ def _add_radarr_alias(data):
     if not metadata_id or not title:
         return jsonify({"error": "metadata_id and title are required"}), 400
 
-    clean_title = clean_series_title(title)
+    clean_title = clean_movie_title(title)
     if not clean_title:
         return jsonify({"error": "Title normalizes to an empty string"}), 400
 
@@ -282,6 +353,8 @@ def _add_radarr_alias(data):
         return jsonify({"error": "Radarr database not configured"}), 503
 
     with conn:
+        _ensure_tagarr_table(conn)
+
         existing = conn.execute(
             'SELECT "Id" FROM "AlternativeTitles"'
             ' WHERE "CleanTitle" = ? AND "MovieMetadataId" = ? AND "SourceType" = ?',
@@ -297,6 +370,13 @@ def _add_radarr_alias(data):
             ' VALUES (?, ?, ?, ?)',
             (title, clean_title, RADARR_MANUAL_SOURCE_TYPE, metadata_id),
         )
+        conn.execute(
+            'INSERT OR IGNORE INTO "TagarrAliases"'
+            ' ("Title", "CleanTitle", "MovieMetadataId")'
+            ' VALUES (?, ?, ?)',
+            (title, clean_title, metadata_id),
+        )
+
         conn.commit()
         conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
 
@@ -343,8 +423,11 @@ def _remove_radarr_alias(alias_id):
         return jsonify({"error": "Radarr database not configured"}), 503
 
     with conn:
+        _ensure_tagarr_table(conn)
+
         row = conn.execute(
-            'SELECT "Title", "SourceType" FROM "AlternativeTitles" WHERE "Id" = ?',
+            'SELECT "Title", "CleanTitle", "MovieMetadataId", "SourceType"'
+            ' FROM "AlternativeTitles" WHERE "Id" = ?',
             (alias_id,),
         ).fetchone()
 
@@ -355,6 +438,12 @@ def _remove_radarr_alias(alias_id):
             return jsonify({"error": "Only manual aliases can be removed"}), 403
 
         conn.execute('DELETE FROM "AlternativeTitles" WHERE "Id" = ?', (alias_id,))
+        conn.execute(
+            'DELETE FROM "TagarrAliases"'
+            ' WHERE "MovieMetadataId" = ? AND "CleanTitle" = ?',
+            (row["MovieMetadataId"], row["CleanTitle"]),
+        )
+
         conn.commit()
         conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
 
