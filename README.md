@@ -11,7 +11,9 @@ Tagarr gives you a simple web UI to search your Sonarr and Radarr libraries and 
 ## Features
 
 - **Unified search** across both Sonarr and Radarr libraries in one place
-- **Add custom aliases** with a title and optional season number (Sonarr) so releases match correctly
+- **Add custom aliases** with a title and optional network name (Sonarr) so releases match correctly
+- **Network-aware matching** — attach a network (e.g. "NBC", "CBS") to a Sonarr alias and Tagarr creates paired entries so releases with or without the network name both match
+- **Persistent Radarr aliases** — manual aliases survive Radarr metadata refreshes via a shadow table that automatically re-syncs
 - **Remove manual aliases** you no longer need — auto-imported aliases are protected and read-only
 - **Works with either or both** — configure just Sonarr, just Radarr, or both
 - **Poster art and metadata** displayed inline so you always know what you're editing
@@ -62,10 +64,10 @@ Tagarr exposes a `/health` endpoint that reports per-database status. The Docker
 
 Tagarr writes directly to the same SQLite tables that Sonarr and Radarr use for alias matching:
 
-- **Sonarr**: Inserts into `SceneMappings` with `Type = "ManualMapping"` — the same format Sonarr uses for its own manual mappings
-- **Radarr**: Inserts into `AlternativeTitles` with `SourceType = 2` — Radarr's marker for manually added titles
+- **Sonarr**: Inserts into `SceneMappings` with `Type = "ManualMapping"` — the same format Sonarr uses for its own manual mappings. When a network is specified, two entries are created (with and without the network name) and linked via a `Comment` field so they can be managed as a pair.
+- **Radarr**: Inserts into `AlternativeTitles` with `SourceType = 2` — Radarr's marker for manually added titles. A `TagarrAliases` shadow table tracks what Tagarr has added so aliases can be automatically restored if Radarr removes them during a metadata refresh.
 
-Title normalization (stripping articles, punctuation, and diacritics) mirrors the exact logic used internally by both apps, so aliases are matched the same way built-in titles are.
+Title normalization mirrors the exact logic used internally by each app — Sonarr's `CleanSeriesTitle` and Radarr's `CleanMovieTitle` (which includes German umlaut expansion: ä→ae, ö→oe, ü→ue, ß→ss) — so aliases are matched the same way built-in titles are.
 
 ## Development
 
